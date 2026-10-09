@@ -769,20 +769,25 @@ html,body{overflow:hidden;overscroll-behavior:none}
 #sbtn[hidden]{display:none}
 #busy{position:absolute;left:50%;transform:translateX(-50%);top:calc(112px + var(--sat));z-index:600;background:rgba(24,33,30,.92);color:#fff;border-radius:16px;padding:6px 14px;font-size:12.5px;white-space:nowrap}
 #busy[hidden]{display:none}
-#panel{position:absolute;left:0;right:0;bottom:0;z-index:500;display:flex;flex-direction:column;background:var(--surface);border-radius:18px 18px 0 0;box-shadow:0 -4px 18px rgba(0,0,0,.28)}
+#panel{position:absolute;left:68px;right:0;bottom:0;z-index:500;display:flex;flex-direction:column;background:var(--surface);border-radius:18px 0 0 0;box-shadow:0 -4px 18px rgba(0,0,0,.28)}
 #panel[data-s="1"]{height:58vh;height:58dvh}
 #panel[data-s="2"]{height:92vh;height:92dvh}
 #panel[data-s="0"] #body{display:none}
-#grab{flex:none;height:26px;display:grid;place-items:center;cursor:grab;touch-action:none;border:0;background:none;width:100%;padding:0}
+#grab{flex:none;height:32px;cursor:grab;touch-action:none;border:0;background:none;width:100%;padding:0}
 #grab i{width:44px;height:5px;border-radius:3px;background:var(--line)}
 #quick{flex:none;padding:0 12px 10px}
 #body{flex:1;min-height:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
 .tab{display:none;overflow:auto;padding:14px 14px 24px;min-height:0;flex:1;-webkit-overflow-scrolling:touch}
 .tab.on{display:block}
-#tabbar{flex:none;display:flex;border-top:1px solid var(--line);padding-bottom:var(--sab)}
-#tabbar button{flex:1;min-height:56px;border:0;background:none;color:var(--muted);font-weight:700;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;touch-action:manipulation}
-#tabbar button .ic{font-size:21px;line-height:1.1}
-#tabbar button[aria-selected=true]{color:var(--accent)}
+#tabbar{position:fixed;left:6px;top:calc(72px + var(--sat));width:58px;z-index:560;display:flex;flex-direction:column;background:var(--surface);border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.3);padding:4px 0}
+#tabbar button{flex:none;width:100%;min-height:62px;border:0;background:none;color:var(--muted);font-weight:700;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;touch-action:manipulation;border-radius:12px}
+#tabbar button .ic{font-size:22px;line-height:1.1}
+#tabbar button[aria-selected=true]{color:var(--accent);background:var(--bg)}
+#glab{font-size:12px;color:var(--muted);font-weight:700;margin-left:8px}
+#grab{display:flex;align-items:center;justify-content:center}
+#pfold{display:none;position:absolute;top:50%;left:472px;margin-top:-30px;z-index:560;width:22px;height:60px;border:0;border-radius:0 10px 10px 0;background:var(--surface);color:var(--muted);box-shadow:2px 0 8px rgba(0,0,0,.25);align-items:center;justify-content:center;cursor:pointer;font-size:16px;padding:0}
+@media (max-width:899px){.leaflet-bottom.leaflet-left{left:68px}}
+@media (max-width:520px){.stepper button{width:38px}.stepper input{width:44px}.qchip{min-width:36px}#qchips button:nth-child(4){display:none}.qrow{flex-wrap:wrap}}
 @media (min-width:900px){
   #map{left:472px;right:0}
   #panel{top:0;bottom:0;left:0;right:auto;width:472px;height:auto!important;border-radius:0;box-shadow:2px 0 14px rgba(0,0,0,.2);display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
@@ -790,11 +795,18 @@ html,body{overflow:hidden;overscroll-behavior:none}
   #grab{display:none}
   #quick{grid-column:2;grid-row:1;padding-top:12px}
   #body{grid-column:2;grid-row:2}
-  #tabbar{grid-column:1;grid-row:1/3;flex-direction:column;justify-content:flex-start;gap:4px;border-top:0;border-right:1px solid var(--line);background:var(--bg);padding:10px 0}
-  #tabbar button{flex:none;width:100%;min-height:78px;border-left:3px solid transparent;font-size:12.5px}
+  #panel{left:0}
+  #tabbar{position:static;width:auto;grid-column:1;grid-row:1/3;flex-direction:column;justify-content:flex-start;gap:4px;border-top:0;border-right:1px solid var(--line);background:var(--bg);padding:10px 0;border-radius:0;box-shadow:none}
+  #tabbar button{flex:none;width:100%;min-height:78px;border-left:3px solid transparent;font-size:12.5px;border-radius:0}
   #tabbar button .ic{font-size:24px}
   #tabbar button[aria-selected=true]{border-left-color:var(--accent);background:var(--surface)}
   #top{left:488px;right:12px}
+  #pfold{display:flex}
+  body.fold #map{left:76px}
+  body.fold #panel{width:76px}
+  body.fold #quick,body.fold #body{display:none}
+  body.fold #top{left:92px}
+  body.fold #pfold{left:76px}
   .leaflet-top.leaflet-left{left:0}
 }
 /* 빠른 기록 */
@@ -857,9 +869,10 @@ input[type=text],input[type=number],textarea,select{font-size:16px;min-height:44
     <button id="sbtn" type="button" hidden>영업 종료</button>
   </div>
   <div id="busy" hidden role="status"></div>
+  <button id="pfold" type="button" aria-label="패널 접기 또는 펼치기">‹</button>
 
   <section id="panel" data-s="0" aria-label="메뉴">
-    <button id="grab" type="button" aria-label="패널 펼치기 또는 접기"><i></i></button>
+    <button id="grab" type="button" aria-label="패널 펼치기 또는 접기"><i></i><span id="glab">펼치기 ▴</span></button>
 
     <div id="quick">
       <div id="qidle">
@@ -1303,7 +1316,8 @@ function classify(t){
   return null;
 }
 function r5(x){return Math.round(x*1e5)/1e5;}
-var OVP=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"];
+var OVP=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter","https://overpass.openstreetmap.fr/api/interpreter"];
+var ovErr="";
 function bboxOf(r){var dl=r.r/111320,dg=r.r/(111320*Math.cos(r.lat*Math.PI/180));return [r.lat-dl,r.lng-dg,r.lat+dl,r.lng+dg];}
 function overpassQuery(bb){
   var B="("+bb.map(function(x){return x.toFixed(5);}).join(",")+")";
@@ -1317,10 +1331,10 @@ function fetchOverpass(q){
   var i=0;
   function next(){
     if(i>=OVP.length)return Promise.reject(new Error("all"));
-    var url=OVP[i++],ctl=(typeof AbortController!=="undefined")?new AbortController():null,to=ctl?setTimeout(function(){ctl.abort();},45000):null;
+    var url=OVP[i++],ctl=(typeof AbortController!=="undefined")?new AbortController():null,to=ctl?setTimeout(function(){ctl.abort();},30000):null;
     return fetch(url,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q),signal:ctl?ctl.signal:undefined})
       .then(function(r){if(to)clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
-      .catch(function(){if(to)clearTimeout(to);return next();});
+      .catch(function(e){if(to)clearTimeout(to);ovErr=url.replace(/^https:\/\/([^\/]+).*$/,"$1")+" · "+(e&&e.name==="AbortError"?"시간 초과":((e&&e.message)||"연결 실패"));return next();});
   }
   return next();
 }
@@ -1331,7 +1345,7 @@ function busy(msg){var b=$("busy");if(msg){b.textContent=msg;b.hidden=false;}els
 function loadOsm(){
   if(osmBusy){pendingReload=true;return Promise.resolve();}
   if(!cfg.region){toast("먼저 영업 지역을 정하세요.");openRegionDlg();return Promise.resolve();}
-  osmBusy=true;var b=$("osmload");b.disabled=true;b.textContent="불러오는 중… (최대 1분)";
+  osmBusy=true;var b=$("osmload");b.disabled=true;b.textContent="불러오는 중… (최대 1분)";renderHs();
   function ok(d,req){
     var np={},n=0;
     (d.elements||[]).forEach(function(e){
@@ -1366,7 +1380,7 @@ function loadOsm(){
       return false;
     });
   }
-  return go(0).then(function(){osmBusy=false;busy(null);b.disabled=false;b.textContent="영업 지역 데이터 불러오기";
+  return go(0).then(function(){osmBusy=false;busy(null);renderHs();b.disabled=false;b.textContent="영업 지역 데이터 불러오기";
     if(pendingReload){pendingReload=false;if(cfg.region&&!isCovered(cfg.region)&&Date.now()-lastFail>60000)loadOsm();}});
 }
 $("osmload").addEventListener("click",function(){lastFail=0;loadOsm();});
@@ -1515,7 +1529,12 @@ function describe(p,pred){
 }
 function renderHs(){
   var box=$("hslist");box.textContent="";recLayer.clearLayers();
-  if(!lastFlow||(!lastFlow.max&&!lastRes.max)){box.appendChild(el("p","empty","지역을 정하면 지도 데이터를 불러와 추천 지점을 보여줍니다."));$("hsstat").textContent="";return;}
+  if(!lastFlow||(!lastFlow.max&&!lastRes.max)){if(cfg.region&&!isCovered(cfg.region)){
+      var em=el("div","empty");em.appendChild(el("div",null,osmBusy?"이 지역 지도 데이터를 불러오는 중입니다…":"이 지역의 지도 데이터를 아직 불러오지 못했습니다."));
+      if(ovErr&&!osmBusy)em.appendChild(el("div","meta","마지막 오류: "+ovErr));
+      if(!osmBusy){var rb=el("button","btn primary","다시 불러오기");rb.type="button";rb.style.marginTop="8px";rb.addEventListener("click",function(){lastFail=0;loadOsm();});em.appendChild(rb);}
+      box.appendChild(em);
+    }else box.appendChild(el("p","empty","지역을 정하면 지도 데이터를 불러와 추천 지점을 보여줍니다."));$("hsstat").textContent="";return;}
   $("hsstat").textContent=SLOTS[st.slot].n+" · "+(st.wk?"주말":"평일")+" · 기준 지점 "+lastItems.length+"개";
   var rows=[];
   peaks(lastFlow,5).forEach(function(p){rows.push({kind:"flow",p:p,d:describe(p,function(it){return it[3]!=="residence";})});});
@@ -1971,7 +1990,10 @@ $("lyAuto").addEventListener("change",function(){autoOn=this.checked;save("fs_au
 /* ===== 하단 시트 · 탭 ===== */
 var sheet=0;
 function layoutSheet(){var h=isDesk()?0:$("panel").offsetHeight;document.documentElement.style.setProperty("--sheet-h",h+"px");map.invalidateSize();}
-function setSheet(n){sheet=n;$("panel").setAttribute("data-s",String(n));layoutSheet();}
+function setSheet(n){sheet=n;$("panel").setAttribute("data-s",String(n));$("glab").textContent=n>0?"접기 ▾":"펼치기 ▴";layoutSheet();}
+var folded=!!load("fs_fold",false);
+function setFold(f){folded=f;document.body.classList.toggle("fold",f);$("pfold").textContent=f?"›":"‹";save("fs_fold",f);setTimeout(function(){map.invalidateSize();layoutSheet();},60);}
+$("pfold").addEventListener("click",function(){setFold(!folded);});
 (function grab(){
   var g=$("grab"),y0=null,moved=false;
   g.addEventListener("pointerdown",function(e){y0=e.clientY;moved=false;try{g.setPointerCapture(e.pointerId);}catch(x){}});
@@ -1992,13 +2014,18 @@ function showTab(k,open){
   setTimeout(layoutSheet,50);
 }
 Array.prototype.forEach.call(tabBtns,function(b){b.addEventListener("click",function(){
-  var k=b.getAttribute("data-tab");
-  if(b.getAttribute("aria-selected")==="true"&&sheet>0&&!isDesk()){setSheet(0);return;}
+  var k=b.getAttribute("data-tab"),sel=b.getAttribute("aria-selected")==="true";
+  if(isDesk()){
+    if(folded){setFold(false);showTab(k,true);return;}
+    if(sel){setFold(true);return;}
+    showTab(k,true);return;
+  }
+  if(sel&&sheet>0){setSheet(0);return;}
   showTab(k,true);
 });});
 
 /* ===== 시작 ===== */
-renderSettings();syncCtl();renderActs();renderLog();renderDataStat();renderK();drawRegion();drawKapt();drawPast();recompute();updateHeader();setSheet(0);
+renderSettings();syncCtl();renderActs();renderLog();renderDataStat();renderK();drawRegion();drawKapt();drawPast();recompute();updateHeader();setSheet(0);setFold(folded);
 pOpen().then(function(){renderLog();});
 if(cfg.region)fitRegion();
 (function resume(){

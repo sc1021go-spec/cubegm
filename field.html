@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#6d28d9">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="필드영업">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%236d28d9%27/%3E%3Cpath d=%27M32 12c-8 0-14 6-14 14 0 10 14 26 14 26s14-16 14-26c0-8-6-14-14-14z%27 fill=%27%23fff%27/%3E%3Ccircle cx=%2732%27 cy=%2726%27 r=%276%27 fill=%27%236d28d9%27/%3E%3C/svg%3E">
 <title>분양 필드영업 지도</title>
 <style>/* required styles */
 
@@ -769,7 +773,7 @@ html,body{overflow:hidden;overscroll-behavior:none}
 #sbtn[hidden]{display:none}
 #busy{position:absolute;left:50%;transform:translateX(-50%);top:calc(112px + var(--sat));z-index:600;background:rgba(24,33,30,.92);color:#fff;border-radius:16px;padding:6px 14px;font-size:12.5px;white-space:nowrap}
 #busy[hidden]{display:none}
-#panel{position:absolute;left:68px;right:0;bottom:0;z-index:500;display:flex;flex-direction:column;background:var(--surface);border-radius:18px 0 0 0;box-shadow:0 -4px 18px rgba(0,0,0,.28)}
+#panel{position:absolute;left:0;right:0;bottom:0;z-index:500;display:flex;flex-direction:column;background:var(--surface);border-radius:18px 18px 0 0;box-shadow:0 -4px 18px rgba(0,0,0,.28)}
 #panel[data-s="1"]{height:58vh;height:58dvh}
 #panel[data-s="2"]{height:92vh;height:92dvh}
 #panel[data-s="0"] #body{display:none}
@@ -786,7 +790,7 @@ html,body{overflow:hidden;overscroll-behavior:none}
 #glab{font-size:12px;color:var(--muted);font-weight:700;margin-left:8px}
 #grab{display:flex;align-items:center;justify-content:center}
 #pfold{display:none;position:absolute;top:50%;left:472px;margin-top:-30px;z-index:560;width:22px;height:60px;border:0;border-radius:0 10px 10px 0;background:var(--surface);color:var(--muted);box-shadow:2px 0 8px rgba(0,0,0,.25);align-items:center;justify-content:center;cursor:pointer;font-size:16px;padding:0}
-@media (max-width:899px){.leaflet-bottom.leaflet-left{left:68px}}
+#panel.ov{padding-left:68px}
 @media (max-width:520px){.stepper button{width:38px}.stepper input{width:44px}.qchip{min-width:36px}#qchips button:nth-child(4){display:none}.qrow{flex-wrap:wrap}}
 @media (min-width:900px){
   #map{left:472px;right:0}
@@ -1989,7 +1993,7 @@ $("lyAuto").addEventListener("change",function(){autoOn=this.checked;save("fs_au
 
 /* ===== 하단 시트 · 탭 ===== */
 var sheet=0;
-function layoutSheet(){var h=isDesk()?0:$("panel").offsetHeight;document.documentElement.style.setProperty("--sheet-h",h+"px");map.invalidateSize();}
+function layoutSheet(){var pn=$("panel"),h=isDesk()?0:pn.offsetHeight;document.documentElement.style.setProperty("--sheet-h",h+"px");pn.classList.toggle("ov",!isDesk()&&pn.getBoundingClientRect().top<$("tabbar").getBoundingClientRect().bottom+4);map.invalidateSize();}
 function setSheet(n){sheet=n;$("panel").setAttribute("data-s",String(n));$("glab").textContent=n>0?"접기 ▾":"펼치기 ▴";layoutSheet();}
 var folded=!!load("fs_fold",false);
 function setFold(f){folded=f;document.body.classList.toggle("fold",f);$("pfold").textContent=f?"›":"‹";save("fs_fold",f);setTimeout(function(){map.invalidateSize();layoutSheet();},60);}

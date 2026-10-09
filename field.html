@@ -784,12 +784,18 @@ html,body{overflow:hidden;overscroll-behavior:none}
 #tabbar button .ic{font-size:21px;line-height:1.1}
 #tabbar button[aria-selected=true]{color:var(--accent)}
 @media (min-width:900px){
-  #map{right:440px}
-  #panel{top:0;left:auto;width:440px;height:auto!important;border-radius:0;box-shadow:-2px 0 12px rgba(0,0,0,.18)}
+  #map{left:472px;right:0}
+  #panel{top:0;bottom:0;left:0;right:auto;width:472px;height:auto!important;border-radius:0;box-shadow:2px 0 14px rgba(0,0,0,.2);display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
   #panel[data-s="0"] #body{display:flex}
   #grab{display:none}
-  #top{right:460px}
-  #quick{padding-top:10px}
+  #quick{grid-column:2;grid-row:1;padding-top:12px}
+  #body{grid-column:2;grid-row:2}
+  #tabbar{grid-column:1;grid-row:1/3;flex-direction:column;justify-content:flex-start;gap:4px;border-top:0;border-right:1px solid var(--line);background:var(--bg);padding:10px 0}
+  #tabbar button{flex:none;width:100%;min-height:78px;border-left:3px solid transparent;font-size:12.5px}
+  #tabbar button .ic{font-size:24px}
+  #tabbar button[aria-selected=true]{border-left-color:var(--accent);background:var(--surface)}
+  #top{left:488px;right:12px}
+  .leaflet-top.leaflet-left{left:0}
 }
 /* 빠른 기록 */
 .startbig{width:100%;min-height:58px;border-radius:14px;border:0;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:var(--accent-ink);font-size:19px;font-weight:800;cursor:pointer;touch-action:manipulation}
@@ -883,6 +889,7 @@ input[type=text],input[type=number],textarea,select{font-size:16px;min-height:44
         <div class="row" style="margin-top:8px"><button class="btn sm" id="refresh" type="button">다시 계산</button></div>
         <h2>지도 표시</h2>
         <div class="tog">
+          <label><input type="checkbox" id="lyAuto" checked>지도 이동 시 자동 갱신</label>
           <label><input type="checkbox" id="lyFlow" checked>유동(붉은색)</label>
           <label><input type="checkbox" id="lyRes" checked>거주지(파란색)</label>
           <label><input type="checkbox" id="lyRec" checked>추천 핀</label>
@@ -1120,6 +1127,8 @@ var DEF={prod:{type:"apt",name:"",price:""},region:null,target:{ages:[],hh:[],jo
 var cfg=load("fs_cfg",null)||DEF;
 ["prod","target","ov"].forEach(function(k){if(!cfg[k])cfg[k]=JSON.parse(JSON.stringify(DEF[k]));});
 var pois=load("fs_pois",{}), poiMeta=load("fs_poimeta",null);
+var covers=load("fs_cov",[]);
+if(!covers.length&&poiMeta&&poiMeta.key){var kk=poiMeta.key.split(",");if(kk.length===3)covers=[{lat:+kk[0],lng:+kk[1],r:+kk[2],ts:poiMeta.ts||0}];}
 var custom=load("fs_custom",[]);
 var cxpos=load("fs_cx",{});
 var sessions=load("fs_sessions",[]);
@@ -1315,45 +1324,55 @@ function fetchOverpass(q){
   }
   return next();
 }
-var osmBusy=false;
+var osmBusy=false,pendingReload=false,lastFail=0;
 function regionKey(r){return r.lat.toFixed(4)+","+r.lng.toFixed(4)+","+r.r;}
+function isCovered(g){return !!g&&covers.some(function(c){return hav(c.lat,c.lng,g.lat,g.lng)+g.r*0.8<=c.r;});}
 function busy(msg){var b=$("busy");if(msg){b.textContent=msg;b.hidden=false;}else b.hidden=true;}
 function loadOsm(){
-  if(osmBusy)return Promise.resolve();
+  if(osmBusy){pendingReload=true;return Promise.resolve();}
   if(!cfg.region){toast("먼저 영업 지역을 정하세요.");openRegionDlg();return Promise.resolve();}
   osmBusy=true;var b=$("osmload");b.disabled=true;b.textContent="불러오는 중… (최대 1분)";
-  function ok(d){
-    var r=cfg.region,np={},n=0;
+  function ok(d,req){
+    var np={},n=0;
     (d.elements||[]).forEach(function(e){
       var c=classify(e.tags||{});if(!c)return;
       var lat=e.lat!=null?e.lat:(e.center?e.center.lat:null),lon=e.lon!=null?e.lon:(e.center?e.center.lon:null);
       if(lat==null||lon==null)return;
       np[e.type[0]+e.id]=[r5(lat),r5(lon),c[0],c[1],(e.tags&&e.tags.name)||""];n++;
     });
-    pois=np;poiMeta={key:regionKey(r),ts:Date.now(),n:n};
-    save("fs_pois",pois);save("fs_poimeta",poiMeta);
+    var all={};Object.keys(pois).forEach(function(k){all[k]=pois[k];});Object.keys(np).forEach(function(k){all[k]=np[k];});
+    var ks=Object.keys(all);
+    if(ks.length>20000){ks.sort(function(a,b){return hav(req.lat,req.lng,all[a][0],all[a][1])-hav(req.lat,req.lng,all[b][0],all[b][1]);});ks.slice(20000).forEach(function(k){delete all[k];});ks=ks.slice(0,20000);}
+    pois=all;
+    covers=covers.filter(function(c){return !(hav(c.lat,c.lng,req.lat,req.lng)+c.r<=req.r);});
+    covers.unshift({lat:req.lat,lng:req.lng,r:req.r,ts:Date.now()});covers=covers.slice(0,12);
+    poiMeta={key:regionKey(req),ts:Date.now(),n:ks.length};
+    save("fs_pois",pois);save("fs_poimeta",poiMeta);save("fs_cov",covers);
     toast("지도 데이터 "+n+"곳을 불러왔습니다.");
     recompute();renderDataStat();
     return true;
   }
   function go(tries){
-    var r=cfg.region;busy("지도 데이터 불러오는 중… "+(tries?"(범위를 줄여 재시도)":""));
-    return fetchOverpass(overpassQuery(bboxOf(r))).then(ok).catch(function(){
-      if(tries<1&&r.r>600){
-        r.r=Math.max(500,Math.round(r.r*0.6/100)*100);save("fs_cfg",cfg);drawRegion();fitRegion();renderSettings();
-        toast("데이터가 많거나 서버가 느려 반경을 "+km(r.r)+"로 줄여 다시 시도합니다.");
+    var g=cfg.region,req={lat:g.lat,lng:g.lng,r:g.r};busy("지도 데이터 불러오는 중… "+(tries?"(범위를 줄여 재시도)":""));
+    return fetchOverpass(overpassQuery(bboxOf(req))).then(function(d){return ok(d,req);}).catch(function(){
+      if(tries<1&&req.r>600){
+        req.r=Math.max(500,Math.round(req.r*0.6/100)*100);
+        var q=cfg.region;if(q&&q.lat===req.lat&&q.lng===req.lng){q.r=req.r;save("fs_cfg",cfg);drawRegion();renderSettings();}
+        toast("데이터가 많거나 서버가 느려 반경을 "+km(req.r)+"로 줄여 다시 시도합니다.");
         return go(tries+1);
       }
+      lastFail=Date.now();
       toast("지도 데이터 서버에 연결하지 못했습니다. 인터넷을 확인하고 ‘데이터’ 탭에서 다시 불러오세요.");
       return false;
     });
   }
-  return go(0).then(function(){osmBusy=false;busy(null);b.disabled=false;b.textContent="영업 지역 데이터 불러오기";});
+  return go(0).then(function(){osmBusy=false;busy(null);b.disabled=false;b.textContent="영업 지역 데이터 불러오기";
+    if(pendingReload){pendingReload=false;if(cfg.region&&!isCovered(cfg.region)&&Date.now()-lastFail>60000)loadOsm();}});
 }
-$("osmload").addEventListener("click",loadOsm);
+$("osmload").addEventListener("click",function(){lastFail=0;loadOsm();});
 function renderDataStat(){
   var n=Object.keys(pois).length;
-  $("osmstat").textContent=n?("지점 "+n+"곳 · "+(poiMeta?fullTime(poiMeta.ts):"")+(poiMeta&&cfg.region&&poiMeta.key!==regionKey(cfg.region)?" · 지역이 바뀜(다시 불러오기)":"")):"불러온 데이터 없음";
+  $("osmstat").textContent=n?("지점 "+n+"곳 · "+(poiMeta?fullTime(poiMeta.ts):"")+(cfg.region&&!isCovered(cfg.region)?" · 현재 지도 지역은 아직 안 불러옴":"")):"불러온 데이터 없음";
   $("csvstat").textContent=custom.length?custom.length+"건 가져옴":"";
 }
 
@@ -1579,7 +1598,7 @@ function collect(){
 ["ptype","pname","pprice","tinc","tast"].forEach(function(id){$(id).addEventListener("change",function(){collect();renderW();renderProd();recompute();});});
 $("rgr").addEventListener("input",function(){var v=+this.value;$("rgrv").textContent=v>=1000?(v/1000).toFixed(1)+"km":v+"m";});
 $("rgr").addEventListener("change",function(){
-  if(!cfg.region)return;collect();drawRegion();fitRegion();renderProd();renderSettings();recompute();loadOsm();
+  if(!cfg.region)return;collect();drawRegion();fitRegion();renderProd();renderSettings();recompute();if(!isCovered(cfg.region)){lastFail=0;loadOsm();}
 });
 $("regchip").addEventListener("click",openRegionDlg);
 $("rgopen").addEventListener("click",openRegionDlg);
@@ -1609,7 +1628,7 @@ function openRegionDlg(){dlgR=cfg.region?(RADII.indexOf(cfg.region.r)>=0?cfg.reg
 function closeRegionDlg(){$("rdlg").hidden=true;}
 function applyRegion(name,lat,lng,r){
   closeRegionDlg();setSheet(0);setRegion(name,lat,lng,r);pushRecent();recompute();
-  toast("‘"+name+"’ 지역으로 바꿨습니다. 지도 데이터를 불러옵니다…");loadOsm();
+  if(isCovered(cfg.region))toast("‘"+name+"’ 지역으로 바꿨습니다. 저장된 지도 데이터로 바로 표시합니다.");else{toast("‘"+name+"’ 지역으로 바꿨습니다. 지도 데이터를 불러옵니다…");lastFail=0;loadOsm();}
 }
 function revName(lat,lng,fallback){
   return fetch("https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=ko&lat="+lat+"&lon="+lng).then(function(r){return r.json();}).then(function(d){
@@ -1648,8 +1667,7 @@ $("apply").addEventListener("click",function(){
   collect();
   if(!cfg.region){openRegionDlg();return;}
   drawRegion();renderProd();recompute();
-  var stale=!poiMeta||poiMeta.key!==regionKey(cfg.region)||!Object.keys(pois).length;
-  if(stale)loadOsm();
+  if(!isCovered(cfg.region))loadOsm();
   setSheet(0);
 });
 
@@ -1930,6 +1948,26 @@ $("reset").addEventListener("click",function(){
   $("logdetail").hidden=true;$("logmain").hidden=false;updateHeader();renderActs();renderLog();recompute();toast("영업 기록을 모두 삭제했습니다.");
 });
 
+/* ===== 지도를 옮기면 자동 갱신 ===== */
+var autoOn=load("fs_auto",true),autoT=null,zoomHint=false;
+$("lyAuto").checked=autoOn;
+function visCenter(){var s=map.getSize(),h=visSheet();return map.containerPointToLatLng([s.x/2,(64+s.y-h)/2]);}
+function halfW(){var s=map.getSize(),a=map.containerPointToLatLng([0,s.y/2]),b=map.containerPointToLatLng([s.x,s.y/2]);return hav(a.lat,a.lng,b.lat,b.lng)/2;}
+function autoUpdate(){
+  if(!autoOn)return;
+  if(map.getZoom()<14){if(!zoomHint){zoomHint=true;toast("지도를 동네 단위로 확대하면 마커가 자동으로 갱신됩니다.");}return;}
+  zoomHint=false;
+  var c=visCenter(),g=cfg.region,hw=halfW();
+  var nr=Math.max(500,Math.min(1500,Math.round(hw*1.3/100)*100));
+  if(g&&hav(g.lat,g.lng,c.lat,c.lng)<=g.r*0.35&&hw<=g.r)return;
+  cfg.region={name:"지도 중심 주변",lat:c.lat,lng:c.lng,r:nr,auto:true};save("fs_cfg",cfg);
+  drawRegion();renderSettings();recompute();
+  if(!isCovered(cfg.region)&&Date.now()-lastFail>60000)loadOsm();
+  revName(c.lat,c.lng,"지도 중심 주변").then(function(nm){var q=cfg.region;if(q&&q.auto&&Math.abs(q.lat-c.lat)<1e-9&&Math.abs(q.lng-c.lng)<1e-9){q.name=nm;save("fs_cfg",cfg);renderSettings();}});
+}
+map.on("moveend",function(){if(!autoOn)return;clearTimeout(autoT);autoT=setTimeout(autoUpdate,700);});
+$("lyAuto").addEventListener("change",function(){autoOn=this.checked;save("fs_auto",autoOn);if(autoOn)autoUpdate();else toast("자동 갱신을 껐습니다. 지역 칩에서 직접 고르세요.");});
+
 /* ===== 하단 시트 · 탭 ===== */
 var sheet=0;
 function layoutSheet(){var h=isDesk()?0:$("panel").offsetHeight;document.documentElement.style.setProperty("--sheet-h",h+"px");map.invalidateSize();}
@@ -1979,8 +2017,8 @@ setInterval(function(){
 setTimeout(layoutSheet,200);
 window.addEventListener("resize",layoutSheet);
 if(!cfg.region)setTimeout(function(){if(!curSession())openRegionDlg();},600);
-else if(navigator.onLine!==false&&(!poiMeta||poiMeta.key!==regionKey(cfg.region)||!Object.keys(pois).length))setTimeout(loadOsm,800);
-window.__fs={map:map,cfg:function(){return cfg;},sessions:function(){return sessions;},sheet:function(){return sheet;}};
+else if(navigator.onLine!==false&&!isCovered(cfg.region))setTimeout(loadOsm,800);
+window.__fs={auto:autoUpdate,map:map,cfg:function(){return cfg;},sessions:function(){return sessions;},sheet:function(){return sheet;}};
 })();
 </script>
 </body>

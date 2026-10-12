@@ -1109,9 +1109,31 @@ Marker.prototype.bindPopup=function(node){this.pop=node;return this;};
 /* --- 벡터(선·원·사각형)는 canvas에 그림 --- */
 function Vec(kind,pts,o){this.kind=kind;this.pts=pts;this.o=o||{};this.map=null;}
 Vec.prototype=Object.create(Layer.prototype);
-Vec.prototype._add=function(map){if(this.map)return;this.map=map;map._vecs.push(this);map._redraw();};
-Vec.prototype._del=function(){var m=this.map;if(!m)return;var i=m._vecs.indexOf(this);if(i>=0)m._vecs.splice(i,1);this.map=null;m._redraw();};
-Vec.prototype.addLatLng=function(p){this.pts.push(ll(p));if(this.map)this.map._redraw();return this;};
+function hex(c){
+  if(!c)return "#ff0000";c=String(c).trim();if(c[0]==="#")return c.length===4?"#"+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]:c;
+  var m=c.match(/hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+  if(m){var h=+m[1]/360,sa=+m[2]/100,l=+m[3]/100,q=l<.5?l*(1+sa):l+sa-l*sa,p=2*l-q;
+    function f(t){if(t<0)t+=1;if(t>1)t-=1;return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p;}
+    return "#"+[f(h+1/3),f(h),f(h-1/3)].map(function(x){var n=Math.round(x*255).toString(16);return n.length<2?"0"+n:n;}).join("");}
+  return c;
+}
+function zOfV(v,map){var r=v.o.renderer,p=r&&map._panes[r.pane];return p&&p.style.zIndex?+p.style.zIndex:1;}
+Vec.prototype._add=function(map){
+  if(this.map)return;this.map=map;var o=this.o,sh;
+  try{
+    if(this.kind==="line"){
+      sh=new K.Polyline({path:this.pts.map(kll),strokeWeight:o.weight||3,strokeColor:hex(o.color||"#3388ff"),strokeOpacity:o.opacity!=null?o.opacity:1,strokeStyle:"solid",zIndex:5});
+    }else if(this.kind==="circle"){
+      sh=new K.Circle({center:kll(this.pts[0]),radius:o.radius,strokeWeight:o.weight||3,strokeColor:hex(o.color||"#3388ff"),strokeOpacity:o.opacity!=null?o.opacity:1,strokeStyle:o.dashArray?"dash":"solid",fillColor:hex(o.fillColor||o.color||"#3388ff"),fillOpacity:o.fillOpacity!=null?o.fillOpacity:(o.fillColor?0.2:0),zIndex:3});
+    }else{
+      var a=this.pts[0],b=this.pts[1];
+      sh=new K.Rectangle({bounds:new K.LatLngBounds(new K.LatLng(Math.min(a.lat,b.lat),Math.min(a.lng,b.lng)),new K.LatLng(Math.max(a.lat,b.lat),Math.max(a.lng,b.lng))),strokeWeight:0,strokeOpacity:0,fillColor:hex(o.fillColor),fillOpacity:o.fillOpacity!=null?o.fillOpacity:0.2,zIndex:zOfV(this,map)/100});
+    }
+    sh.setMap(map.m);this.sh=sh;
+  }catch(e){window.__kerr=String(e&&e.message||e);}
+};
+Vec.prototype._del=function(){if(this.sh){this.sh.setMap(null);this.sh=null;}this.map=null;};
+Vec.prototype.addLatLng=function(p){this.pts.push(ll(p));if(this.sh&&this.kind==="line")this.sh.setPath(this.pts.map(kll));else if(!this.sh&&this.map){var m=this.map;this.map=null;this._add(m);}return this;};
 
 /* --- canvas 한 장을 CustomOverlay로 지도에 얹기 --- */
 function CanvasLayer(map,z){
@@ -1150,13 +1172,13 @@ function KMap(id,o){
   this.m=new K.Map(this.el,{center:new K.LatLng(36.992,127.113),level:6});
   this._vecs=[];this._h={click:[],contextmenu:[]};this._panes={};this._popFor=null;this._popOv=null;this._corners={};this._pend=false;this._lpAt=0;
   this.attributionControl={setPrefix:noop};
-  this.heat=new CanvasLayer(this,1);this.vec=new CanvasLayer(this,2);
+  
   K.event.addListener(this.m,"click",function(e){
     if(Date.now()-self._lpAt<500)return;
     self.closePopup();self._fire("click",{latlng:{lat:e.latLng.getLat(),lng:e.latLng.getLng()}});
   });
   K.event.addListener(this.m,"rightclick",function(e){self._fire("contextmenu",{latlng:{lat:e.latLng.getLat(),lng:e.latLng.getLng()}});});
-  K.event.addListener(this.m,"zoom_start",function(){self.heat.hide();self.vec.hide();});
+  
   K.event.addListener(this.m,"idle",function(){self._redraw();});
   K.event.addListener(this.m,"tilesloaded",function(){self.tiles=true;});
   /* 휴대폰: 길게 누르면 contextmenu */
@@ -1215,7 +1237,7 @@ KMap.prototype._redraw=function(){
   var self=this;if(this._pend)return;this._pend=true;
   (window.requestAnimationFrame||setTimeout)(function(){self._pend=false;self._paint();});
 };
-KMap.prototype._paint=function(){
+KMap.prototype._paint=function(){return;
   var cells=[],vecs=[];
   this._vecs.forEach(function(v){(v.kind==="rect"&&v.o.renderer?cells:vecs).push(v);});
   var self=this;
@@ -1725,7 +1747,7 @@ var lastItems=[],lastFlow=null,lastRes=null;
 function drawCells(g,layer,rend,colorFn){
   var D=gridDims();
   Object.keys(g.cells).forEach(function(k){
-    var n=g.cells[k]/g.max;if(n<0.1)return;var p=k.split(","),i=+p[0],j=+p[1];
+    var n=g.cells[k]/g.max;if(n<(IS_K?0.16:0.1))return;var p=k.split(","),i=+p[0],j=+p[1];
     L.rectangle([[i*D.dlat,j*D.dlng],[(i+1)*D.dlat,(j+1)*D.dlng]],{renderer:rend,stroke:false,fillColor:colorFn(n),fillOpacity:0.14+0.5*n,interactive:false}).addTo(layer);
   });
 }
